@@ -17,6 +17,7 @@ export default function TicketDetail() {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [posting, setPosting] = useState(false);
+  const [users, setUsers] = useState([]);
 
   const loadTicket = () => {
     api.get(`/tickets/${id}`).then((res) => {
@@ -32,12 +33,20 @@ export default function TicketDetail() {
   useEffect(() => {
     loadTicket();
     loadComments();
+    api.get("/users").then((res) => setUsers(res.data));
   }, [id]);
 
   const handleStatusChange = async (newStatus) => {
     const result = await dispatch(updateTicket({ id, updates: { status: newStatus } }));
     if (updateTicket.fulfilled.match(result)) {
       setTicket(result.payload);
+    }
+  };
+
+  const handleAssigneeChange = async (newAssigneeId) => {
+    const result = await dispatch(updateTicket({ id, updates: { assignee: newAssigneeId || null } }));
+    if (updateTicket.fulfilled.match(result)) {
+      loadTicket(); // refetch so assignee.name is populated, not just the raw id
     }
   };
 
@@ -107,28 +116,46 @@ export default function TicketDetail() {
 
         <div className="flex items-center gap-4 font-mono text-xs text-ink-600 mb-6 pb-6 border-b border-ink-800/10">
           <span>created_by: {ticket.createdBy?.name}</span>
-          <span>·</span>
-          <span>assignee: {ticket.assignee?.name || "none"}</span>
         </div>
 
-        <div>
-          <label className="block text-xs font-mono uppercase tracking-wide text-ink-600 mb-2.5">
-            Update status
-          </label>
-          <div className="flex gap-2">
-            {["Open", "In Progress", "Resolved"].map((s) => (
-              <button
-                key={s}
-                onClick={() => handleStatusChange(s)}
-                className={`px-3.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
-                  ticket.status === s
-                    ? "bg-ink-950 dark:bg-accent-600 text-white border-ink-950 dark:border-accent-600"
-                    : "border-ink-800/15 dark:border-white/15 text-ink-700 dark:text-ink-300 hover:border-ink-800/30 dark:hover:border-white/30"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <label className="block text-xs font-mono uppercase tracking-wide text-ink-600 mb-2.5">
+              Update status
+            </label>
+            <div className="flex gap-2">
+              {["Open", "In Progress", "Resolved"].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => handleStatusChange(s)}
+                  className={`px-3.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                    ticket.status === s
+                      ? "bg-ink-950 dark:bg-accent-600 text-white border-ink-950 dark:border-accent-600"
+                      : "border-ink-800/15 dark:border-white/15 text-ink-700 dark:text-ink-300 hover:border-ink-800/30 dark:hover:border-white/30"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono uppercase tracking-wide text-ink-600 mb-2.5">
+              Assignee
+            </label>
+            <select
+              value={ticket.assignee?._id || ""}
+              onChange={(e) => handleAssigneeChange(e.target.value)}
+              className="px-3 py-1.5 border border-ink-800/15 dark:border-white/15 rounded-md text-xs bg-white dark:bg-ink-900 text-ink-950 dark:text-white"
+            >
+              <option value="">Unassigned</option>
+              {users.map((u) => (
+                <option key={u._id} value={u._id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
